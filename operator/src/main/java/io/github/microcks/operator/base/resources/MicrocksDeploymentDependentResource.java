@@ -19,6 +19,7 @@ import io.github.microcks.operator.MicrocksOperatorConfig;
 import io.github.microcks.operator.api.base.v1alpha1.KafkaAuthenticationType;
 import io.github.microcks.operator.api.base.v1alpha1.KafkaSpec;
 import io.github.microcks.operator.api.base.v1alpha1.Microcks;
+import io.github.microcks.operator.api.base.v1alpha1.MicrocksServiceSpec;
 import io.github.microcks.operator.api.base.v1alpha1.MicrocksSpec;
 import io.github.microcks.operator.model.NamedSecondaryResourceProvider;
 
@@ -35,6 +36,7 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A Microcks Kubernetes Deployment dependent resource.
@@ -56,7 +58,11 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
          "SPRING_DATA_MONGODB_URI",
          "SPRING_DATA_MONGODB_DATABASE",
          "SPRING_DATA_MONGODB_USER",
-         "SPRING_DATA_MONGODB_PASSWORD"
+         "SPRING_DATA_MONGODB_PASSWORD",
+         "SPRING_MONGODB_URI",
+         "SPRING_MONGODB_DATABASE",
+         "SPRING_MONGODB_USER",
+         "SPRING_MONGODB_PASSWORD"
    );
 
    /** Default empty constructor. */
@@ -85,6 +91,9 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
       final ObjectMeta microcksMetadata = microcks.getMetadata();
       final String microcksName = microcksMetadata.getName();
       final MicrocksSpec spec = microcks.getSpec();
+
+      // We must know which set of env vars to use.
+      boolean useMicrocksSB4EnvVars = useMicrocksSB4EnvVars(spec);
 
       Deployment deployment = ReconcilerUtils.loadYaml(Deployment.class, getClass(), "/k8s/microcks-deployment.yml");
       DeploymentBuilder builder = new DeploymentBuilder(deployment);
@@ -119,15 +128,15 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
                            .withValue("prod")
                         .endEnv()
                         .addNewEnv()
-                           .withName("SPRING_DATA_MONGODB_URI")
-                           .withValue(getMongoDBConnection(microcks))
+                           .withName(useMicrocksSB4EnvVars ? "SPRING_MONGODB_URI" : "SPRING_DATA_MONGODB_URI")
+                           .withValue(getMongoDBConnection(microcks, useMicrocksSB4EnvVars))
                         .endEnv()
                         .addNewEnv()
-                           .withName("SPRING_DATA_MONGODB_DATABASE")
+                           .withName(useMicrocksSB4EnvVars ? "SPRING_MONGODB_DATABASE" : "SPRING_DATA_MONGODB_DATABASE")
                            .withValue(getMongoDBDatabase(microcks))
                         .endEnv()
                         .addNewEnv()
-                           .withName("SPRING_DATA_MONGODB_USER")
+                           .withName(useMicrocksSB4EnvVars ? "SPRING_MONGODB_USER" : "SPRING_DATA_MONGODB_USER")
                            .withNewValueFrom()
                               .withNewSecretKeyRef()
                                  .withName(getMongoDBSecretName(microcks))
@@ -136,7 +145,7 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
                            .endValueFrom()
                         .endEnv()
                         .addNewEnv()
-                           .withName("SPRING_DATA_MONGODB_PASSWORD")
+                           .withName(useMicrocksSB4EnvVars ? "SPRING_MONGODB_PASSWORD" : "SPRING_DATA_MONGODB_PASSWORD")
                            .withNewValueFrom()
                               .withNewSecretKeyRef()
                                  .withName(getMongoDBSecretName(microcks))
@@ -261,18 +270,26 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
             .toList();
    }
 
-   private String getMongoDBConnection(Microcks microcks) {
+   private String getMongoDBConnection(Microcks microcks, boolean useMicrocksSB4EnvVars) {
       StringBuilder result = new StringBuilder();
 
       if (microcks.getSpec().getMongoDB().getUri() != null) {
          result.append(microcks.getSpec().getMongoDB().getUri());
       } else {
-         result.append("mongodb://${SPRING_DATA_MONGODB_USER}:${SPRING_DATA_MONGODB_PASSWORD}@");
+         if (useMicrocksSB4EnvVars) {
+            result.append("mongodb://${SPRING_MONGODB_USER}:${SPRING_MONGODB_PASSWORD}@");
+         } else {
+            result.append("mongodb://${SPRING_DATA_MONGODB_USER}:${SPRING_DATA_MONGODB_PASSWORD}@");
+         }
          result.append(MongoDBServiceDependentResource.getServiceName(microcks));
          result.append(":").append(MongoDBServiceDependentResource.MONGODB_SERVICE_PORT);
       }
 
-      result.append("/${SPRING_DATA_MONGODB_DATABASE}");
+      if (useMicrocksSB4EnvVars) {
+         result.append("/${SPRING_MONGODB_DATABASE}");
+      } else {
+         result.append("/${SPRING_DATA_MONGODB_DATABASE}");
+      }
       result.append(Objects.requireNonNullElse(microcks.getSpec().getMongoDB().getUriParameters(), ""));
       return result.toString();
    }
@@ -333,5 +350,39 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
          return microcks.getSpec().getFeatures().getAsync().getKafka().getUrl();
       }
       return "";
+   }
+
+   private boolean useMicrocksSB4EnvVars(MicrocksSpec spec) {
+      if ("nightly".equals(spec.getVersion())) {
+         return true;
+      }
+      // Inspect version in details.
+      var evaluation = supportsSB4EnvVars(spec.getVersion());
+      if (evaluation.isPresent()) {
+         return evaluation.get();
+      }
+
+      // Inspect the version of Microcks in image tag.
+      MicrocksServiceSpec microcksServiceSpec = spec.getMicrocks();
+      String versionTag = microcksServiceSpec.getImage().getTag();
+      if (versionTag != null) {
+         evaluation = supportsSB4EnvVars(versionTag);
+         if (evaluation.isPresent()) {
+            return evaluation.get();
+         }
+      }
+      return true;
+   }
+
+   private Optional<Boolean> supportsSB4EnvVars(String version) {
+      String[] parts = version.split("\\.");
+      try {
+         int majorVersion = Integer.parseInt(parts[0]);
+         int minorVersion = Integer.parseInt(parts[1]);
+         return Optional.of((majorVersion == 1 && minorVersion >= 15) || majorVersion >= 2);
+      } catch (Exception e) {
+         logger.warnf("Cannot parse Microcks version '%s'", version);
+      }
+      return Optional.empty();
    }
 }
