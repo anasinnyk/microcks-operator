@@ -357,31 +357,15 @@ public class MicrocksDeploymentDependentResource extends CRUDKubernetesDependent
          return true;
       }
       // Inspect version in details.
-      var evaluation = supportsSB4EnvVars(spec.getVersion());
-      if (evaluation.isPresent()) {
-         return evaluation.get();
-      }
-
-      // Inspect the version of Microcks in image tag.
-      MicrocksServiceSpec microcksServiceSpec = spec.getMicrocks();
-      String versionTag = microcksServiceSpec.getImage().getTag();
-      if (versionTag != null) {
-         evaluation = supportsSB4EnvVars(versionTag);
-         if (evaluation.isPresent()) {
-            return evaluation.get();
-         }
-      }
-      return true;
+      var evaluation = supportsSB4EnvVars(spec);
+      return evaluation.orElse(true);
    }
 
-   private Optional<Boolean> supportsSB4EnvVars(String version) {
-      String[] parts = version.split("\\.");
+   private Optional<Boolean> supportsSB4EnvVars(MicrocksSpec spec) {
       try {
-         int majorVersion = Integer.parseInt(parts[0]);
-         int minorVersion = Integer.parseInt(parts[1]);
-         return Optional.of((majorVersion == 1 && minorVersion >= 15) || majorVersion >= 2);
+         return Optional.of(MicrocksSpecHelper.getMicrocksMinorVersion(spec) >= 15);
       } catch (Exception e) {
-         logger.warnf("Cannot parse Microcks version '%s'", version);
+         logger.warnf("Cannot parse Microcks version '%s'", e.getMessage());
       }
       return Optional.empty();
    }

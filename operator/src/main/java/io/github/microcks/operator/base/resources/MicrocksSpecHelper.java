@@ -19,6 +19,9 @@ import io.github.microcks.operator.api.base.v1alpha1.MicrocksServiceSpec;
 
 import org.jboss.logging.Logger;
 
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * Utility class for MicrocksSpec.
  * @author laurent
@@ -44,15 +47,21 @@ public class MicrocksSpecHelper {
     *         or the default value of 1 if parsing is unsuccessful.
     */
    public static int getMicrocksMajorVersion(io.github.microcks.operator.api.base.v1alpha1.MicrocksSpec spec) {
-      MicrocksServiceSpec microcksSpec = spec.getMicrocks();
-      String[] parts = microcksSpec.getImage().getTag().split("\\.");
-      try {
-         return Integer.parseInt(parts[0]);
-      } catch (Exception nfe) {
-         logger.warnf("Cannot parse Microcks version from tag '%s'", microcksSpec.getImage().getTag());
-      }
       if ("nightly".equals(spec.getVersion())) {
          return 1;
+      }
+
+      // Inspect version in details.
+      int[] parts = getVersionParts(spec.getVersion());
+      if (parts.length > 0) {
+         return parts[0];
+      }
+
+      // Inspect the version of Microcks in image tag.
+      MicrocksServiceSpec microcksSpec = spec.getMicrocks();
+      parts = getVersionParts(microcksSpec.getImage().getTag());
+      if (parts.length > 0) {
+         return parts[0];
       }
       return 1;
    }
@@ -70,16 +79,34 @@ public class MicrocksSpecHelper {
     *         or the default value of 14 if the version is "nightly", or 1 otherwise.
     */
    public static int getMicrocksMinorVersion(io.github.microcks.operator.api.base.v1alpha1.MicrocksSpec spec) {
-      MicrocksServiceSpec microcksSpec = spec.getMicrocks();
-      String[] parts = microcksSpec.getImage().getTag().split("\\.");
-      try {
-         return Integer.parseInt(parts[1]);
-      } catch (Exception nfe) {
-         logger.warnf("Cannot parse Microcks version from tag '%s'", microcksSpec.getImage().getTag());
-      }
       if ("nightly".equals(spec.getVersion())) {
-         return 14;
+         return 15;
       }
-      return 1;
+      // Inspect version in details.
+      int[] parts = getVersionParts(spec.getVersion());
+      if (parts.length > 1) {
+         return parts[1];
+      }
+
+      // Inspect the version of Microcks in image tag.
+      MicrocksServiceSpec microcksSpec = spec.getMicrocks();
+      parts = getVersionParts(microcksSpec.getImage().getTag());
+      if (parts.length > 1) {
+         return parts[1];
+      }
+      return 14;
+   }
+
+   private static int[] getVersionParts(String version) {
+      String[] parts = version.split("\\.");
+      int[] versionParts = new int[parts.length];
+      try {
+         for (int i = 0; i < parts.length; i++) {
+            versionParts[i] = Integer.parseInt(parts[i]);
+         }
+      } catch (Exception e) {
+         logger.warnf("Cannot parse Microcks version '%s'", version);
+      }
+      return versionParts;
    }
 }
