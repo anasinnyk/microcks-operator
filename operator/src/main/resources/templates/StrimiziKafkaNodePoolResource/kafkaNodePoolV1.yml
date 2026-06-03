@@ -1,0 +1,22 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: ephemeral
+  resources:
+    {#if spec.features.async.kafka.resources.requests}
+    requests:
+      {#for key in spec.features.async.kafka.resources.requests.keySet()}
+        {key}: {spec.features.async.kafka.resources.requests.get(key)}
+      {/for}
+    {/if}
+    {#if spec.features.async.kafka.resources.limits}
+    limits:
+      {#for key in spec.features.async.kafka.resources.limits.keySet()}
+        {key}: {spec.features.async.kafka.resources.limits.get(key)}
+      {/for}
+    {/if}

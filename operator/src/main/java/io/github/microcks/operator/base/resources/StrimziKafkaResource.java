@@ -76,9 +76,18 @@ public class StrimziKafkaResource {
       final String microcksName = microcksMetadata.getName();
 
       // Compute strimzi-kafka with Qute template.
-      String strimziKafka = Templates
-            .kafka(microcksName, microcks.getSpec(), client.adapt(OpenShiftClient.class).hasApiGroup("route.openshift.io", true))
-            .render();
+      String strimziKafka = null;
+
+      // Kafka is different depending on Strimzi API version.
+      if (client.hasApiGroup("kafka.strimzi.io/v1", true)) {
+         strimziKafka = Templates
+               .kafkaV1(microcksName, microcks.getSpec(), client.adapt(OpenShiftClient.class).hasApiGroup("route.openshift.io", true))
+               .render();
+      } else {
+         strimziKafka = Templates
+               .kafka(microcksName, microcks.getSpec(), client.adapt(OpenShiftClient.class).hasApiGroup("route.openshift.io", true))
+               .render();
+      }
 
       Map kafkaMap = null;
       try {
@@ -115,5 +124,7 @@ public class StrimziKafkaResource {
    public static class Templates {
       /** Qute template for Kafka resource. */
       public static native TemplateInstance kafka(String name, MicrocksSpec spec, boolean isOpenShift);
+      /** Qute template for Kafka resource in v1 final. */
+      public static native TemplateInstance kafkaV1(String name, MicrocksSpec spec, boolean isOpenShift);
    }
 }

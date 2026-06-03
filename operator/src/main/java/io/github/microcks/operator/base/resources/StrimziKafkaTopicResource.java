@@ -66,7 +66,14 @@ public class StrimziKafkaTopicResource {
       final String microcksName = microcksMetadata.getName();
 
       // Compute strimzi-topic with Qute template.
-      String strimziTopic = Templates.kafkaTopic(microcksName, microcksMetadata.getNamespace()).render();
+      String strimziTopic;
+
+      // KafkaTopic is different depending on Strimzi API version.
+      if (client.hasApiGroup("kafka.strimzi.io/v1", true)) {
+         strimziTopic = Templates.kafkaTopicV1(microcksName, microcksMetadata.getNamespace()).render();
+      } else {
+         strimziTopic = Templates.kafkaTopic(microcksName, microcksMetadata.getNamespace()).render();
+      }
 
       Map topicMap = null;
       try {
@@ -92,5 +99,7 @@ public class StrimziKafkaTopicResource {
    public static class Templates {
       /** Qute template for KafkaTopic resource. */
       public static native TemplateInstance kafkaTopic(String name, String namespace);
+      /** Qute template for KafkaTopic resource in v1 final. */
+      public static native TemplateInstance kafkaTopicV1(String name, String namespace);
    }
 }

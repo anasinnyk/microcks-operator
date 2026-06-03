@@ -51,8 +51,17 @@ public class StrimiziKafkaNodePoolResource {
       final String microcksName = microcksMetadata.getName();
 
       // Compute strimzi-kafka-nodepool with Qute template.
-      String strimziKafkaNodePool = StrimiziKafkaNodePoolResource.Templates
-            .kafkaNodePool(microcksName, microcks.getSpec()).render();
+      String strimziKafkaNodePool;
+
+      // NodePool is different depending on Strimzi API version.
+      if (client.hasApiGroup("kafka.strimzi.io/v1", true)) {
+         strimziKafkaNodePool = StrimiziKafkaNodePoolResource.Templates
+               .kafkaNodePoolV1(microcksName, microcks.getSpec()).render();
+      } else {
+
+         strimziKafkaNodePool = StrimiziKafkaNodePoolResource.Templates
+               .kafkaNodePool(microcksName, microcks.getSpec()).render();
+      }
 
       Map kafkaNodePoolMap = null;
       try {
@@ -82,5 +91,7 @@ public class StrimiziKafkaNodePoolResource {
    public static class Templates {
       /** Qute template for Kafka resource. */
       public static native TemplateInstance kafkaNodePool(String name, MicrocksSpec spec);
+      /** Qute template for Kafka resource in v1 final. */
+      public static native TemplateInstance kafkaNodePoolV1(String name, MicrocksSpec spec);
    }
 }
