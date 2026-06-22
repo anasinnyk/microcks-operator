@@ -4,7 +4,7 @@ fullnameOverride: ""
 
 image:
   repository: quay.io/microcks/microcks-operator
-  tag: "latest"
+  tag: "0.0.10"
   pullPolicy: Always
 
 imagePullSecrets: []
