@@ -197,6 +197,31 @@ spec:
 ```
 
 
+### Image pull secrets
+
+When the container images of the different components are hosted on a private registry, you can provide
+the credentials to use for pulling them through the `imagePullSecrets` property. It holds a list of
+references to existing Kubernetes `Secrets` (of type `kubernetes.io/dockerconfigjson`) living in the
+same namespace as your `Microcks` instance. Those references will be added to **all** the `Deployments`
+managed by the Operator (Microcks web app, Postman runtime, Keycloak, MongoDB and Async Minion).
+
+```yaml
+apiVersion: microcks.io/v1alpha1
+kind: Microcks
+metadata:
+  name: microcks
+spec:
+  #[...]
+  imagePullSecrets:
+    - name: my-private-registry-creds
+  microcks:
+    image:
+      registry: my-registry.internal
+      repository: microcks/microcks
+      tag: 1.13.0
+```
+
+
 ## Microcks specification details
 
 This part of the Custom Resource allows you to configure the Microcks web app component deployment as described

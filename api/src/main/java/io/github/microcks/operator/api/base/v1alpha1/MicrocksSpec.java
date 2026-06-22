@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Toleration;
 import io.sundr.builder.annotations.Buildable;
 
@@ -36,7 +37,8 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({ "version", "microcks", "postman", "keycloak", "mongodb", "features",
-      "clusterDomain", "commonLabels", "commonAnnotations", "commonAffinities", "commonTolerations", "commonExpositions" })
+      "clusterDomain", "commonLabels", "commonAnnotations", "commonAffinities", "commonTolerations", "commonExpositions",
+      "imagePullSecrets" })
 @Buildable(editableEnabled = false, builderPackage = "io.fabric8.kubernetes.api.builder")
 public class MicrocksSpec {
 
@@ -76,6 +78,9 @@ public class MicrocksSpec {
 
    @JsonPropertyDescription("Common exposition settings that applies to all managed resources")
    private ExpositionSpec commonExpositions;
+
+   @JsonPropertyDescription("Image pull secrets references added to all managed deployments")
+   private List<LocalObjectReference> imagePullSecrets;
 
    public String getVersion() {
       return version;
@@ -171,5 +176,13 @@ public class MicrocksSpec {
 
    public void setCommonExpositions(ExpositionSpec commonExpositions) {
       this.commonExpositions = commonExpositions;
+   }
+
+   public List<LocalObjectReference> getImagePullSecrets() {
+      return imagePullSecrets;
+   }
+
+   public void setImagePullSecrets(List<LocalObjectReference> imagePullSecrets) {
+      this.imagePullSecrets = imagePullSecrets;
    }
 }

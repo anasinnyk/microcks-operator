@@ -184,6 +184,9 @@ public class MongoDBDeploymentDependentResource extends CRUDKubernetesDependentR
       if (spec.getCommonTolerations() != null) {
          builder.editSpec().editTemplate().editSpec().withTolerations(spec.getCommonTolerations()).endSpec().endTemplate().endSpec();
       }
+      if (spec.getImagePullSecrets() != null) {
+         builder.editSpec().editTemplate().editSpec().withImagePullSecrets(spec.getImagePullSecrets()).endSpec().endTemplate().endSpec();
+      }
 
       return builder.build();
    }

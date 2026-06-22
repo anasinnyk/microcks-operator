@@ -913,6 +913,14 @@ spec:
                         type: "boolean"
                     type: "object"
                 type: "object"
+              imagePullSecrets:
+                description: "Image pull secrets references added to all managed deployments"
+                items:
+                  properties:
+                    name:
+                      type: "string"
+                  type: "object"
+                type: "array"
               keycloak:
                 description: "Configuration of Keycloak access and/or install"
                 properties:
